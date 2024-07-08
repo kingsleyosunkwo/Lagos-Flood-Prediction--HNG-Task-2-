@@ -1,0 +1,242 @@
+import pandas as pd  # For data manipulation and analysis
+import numpy as np  # For numerical operations
+from sklearn.model_selection import train_test_split  # For splitting the data into training and testing sets
+from sklearn.ensemble import RandomForestRegressor  # For the Random Forest model
+from sklearn.metrics import mean_squared_error, r2_score  # For evaluating the model performance
+from sklearn.impute import SimpleImputer  # For handling missing values
+from sklearn.preprocessing import StandardScaler  # For feature scaling
+
+data = pd.read_csv('Lagos Historical data.csv')
+
+
+# Convert 'datetime' column to datetime type and extract temporal features
+data['datetime'] = pd.to_datetime(data['datetime'])
+data['month'] = data['datetime'].dt.month
+data['day'] = data['datetime'].dt.day
+data['dayofweek'] = data['datetime'].dt.dayofweek
+
+
+# Check for missing values
+data.isnull().sum()
+datetime              0
+tempmax               0
+tempmin               0
+temp                  0
+feelslikemax          0
+feelslikemin          0
+feelslike             0
+dew                   0
+humidity              0
+precip                0
+precipprob            0
+precipcover           0
+preciptype          629
+windgust              0
+windspeed             0
+winddir               0
+sealevelpressure      0
+cloudcover            0
+visibility            4
+solarradiation        0
+solarenergy           0
+uvindex               0
+sunrise               0
+sunset                0
+moonphase             0
+month                 0
+day                   0
+dayofweek             0
+dtype: int64
+
+
+# Impute missing values in 'visibility' with the median
+data['visibility'].fillna(data['visibility'].median(), inplace=True)
+
+
+# Encode 'preciptype' using one-hot encoding
+data = pd.get_dummies(data, columns=['preciptype'], drop_first=True)
+
+
+# Verify that there are no more missing values
+missing_values_after_imputation = data.isnull().sum()
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+# Visualize the distribution of key features
+key_features = ['temp', 'humidity', 'precip', 'windspeed', 'sealevelpressure']
+
+plt.figure(figsize=(15, 10))
+for i, feature in enumerate(key_features, 1):
+    plt.subplot(3, 2, i)
+    sns.histplot(data[feature], kde=True)
+    plt.title(f'Distribution of {feature}')
+
+plt.tight_layout()
+plt.show()
+
+
+# Plot correlation matrix
+plt.figure(figsize=(15, 10))
+correlation_matrix = data[key_features].corr()
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f')
+plt.title('Correlation Matrix')
+plt.show()
+
+data.isnull().sum()
+datetime            0
+tempmax             0
+tempmin             0
+temp                0
+feelslikemax        0
+feelslikemin        0
+feelslike           0
+dew                 0
+humidity            0
+precip              0
+precipprob          0
+precipcover         0
+windgust            0
+windspeed           0
+winddir             0
+sealevelpressure    0
+cloudcover          0
+visibility          0
+solarradiation      0
+solarenergy         0
+uvindex             0
+sunrise             0
+sunset              0
+moonphase           0
+month               0
+day                 0
+dayofweek           0
+dtype: int64
+
+data['precip_lag1'] = data['precip'].shift(1)  # Create a new feature that is the precipitation value from the previous day
+data.dropna(inplace=True)  # Remove rows with missing values that resulted from the lagging operation
+
+Columns = ['tempmax', 'tempmin', 'temp', 'feelslikemax', 'feelslikemin', 'feelslike', 'dew',
+            'humidity','precip','precipprob', 'precipcover', 'windgust', 'windspeed', 'winddir',
+           'sealevelpressure','cloudcover','visibility','solarradiation','solarenergy', 'uvindex']
+
+X = data[Columns]  # Select the features (all columns listed in the Column variable)
+y = data['precip']  # The target variable is 'precip'
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+
+# Split the data into training and testing sets, with 30% of the data reserved for testing
+scaler = StandardScaler()  # Create a StandardScaler object for feature scaling
+X_train = scaler.fit_transform(X_train)  # Fit the scaler on the training data and transform it
+X_test = scaler.transform(X_test)  # Transform the test data using the fitted scaler
+model = RandomForestRegressor(n_estimators=100, random_state=42)  # Create a Random Forest Regressor with 100 trees
+model.fit(X_train, y_train)  # Train the model on the training data
+y_pred_train = model.predict(X_train)  # Predict on the training data
+y_pred_test = model.predict(X_test)  # Predict on the testing data
+
+
+# Compare actual vs. predicted values
+plt.figure(figsize=(12, 6))
+plt.plot(range(len(y_pred_test)), y_pred_test  , label='Predicted', marker='o')
+plt.plot(range(len(y_pred_test)), data['precip'][:len(y_pred_test)], label='Actual', marker='x')
+plt.legend()
+plt.title('Actual vs. Predicted Flood Levels')
+plt.xlabel('Time')
+plt.ylabel('Flood Level')
+plt.show()
+
+
+train_rmse = np.sqrt(mean_squared_error(y_train, y_pred_train))  
+# Calculate the Root Mean Squared Error for training data
+test_rmse = np.sqrt(mean_squared_error(y_test, y_pred_test))  
+
+
+# Calculate the Root Mean Squared Error for testing data
+train_r2 = r2_score(y_train, y_pred_train) 
+
+
+# Calculate the R^2 score for training data
+test_r2 = r2_score(y_test, y_pred_test)  
+
+
+# Calculate the R^2 score for testing data(These are not code)
+print(f'Train RMSE: {train_rmse}, Train R2: {train_r2}')  # Print training metrics
+print(f'Test RMSE: {test_rmse}, Test R2: {test_r2}')  # Print testing metrics
+Train RMSE: 1.6471616229678205, Train R2: 0.9873930492842597
+Test RMSE: 3.5179628745746085, Test R2: 0.9450191452085612
+import joblib  
+
+
+# Import joblib for saving the model
+joblib.dump(model, 'random_forest_flood_predictor.pkl')
+
+
+# Save the trained model to a file
+['random_forest_flood_predictor.pkl']
+new_data = pd.read_csv('Lagos Weather Forcast.csv') 
+
+
+#import new data to be used for the prediction
+
+
+#Take similar preprocessing steps as the training data
+data['datetime'] = pd.to_datetime(data['datetime'])
+data['month'] = data['datetime'].dt.month
+data['day'] = data['datetime'].dt.day
+data['dayofweek'] = data['datetime'].dt.dayofweek
+
+
+
+
+# check for null values
+new_data.isnull().sum() 
+datetime            0
+tempmax             0
+tempmin             0
+temp                0
+feelslikemax        0
+feelslikemin        0
+feelslike           0
+dew                 0
+humidity            0
+precip              0
+precipprob          0
+precipcover         0
+preciptype          0
+windgust            0
+windspeed           0
+winddir             0
+sealevelpressure    0
+cloudcover          0
+visibility          0
+solarradiation      0
+solarenergy         0
+uvindex             0
+sunrise             0
+sunset              0
+moonphase           0
+dtype: int64
+
+
+new_data['precip_lag1'] = data['precip'].shift(1)  
+
+
+# Create a new feature that is the precipitation value from the previous day
+new_data.dropna(inplace=True)  
+
+
+# Remove rows with missing values that resulted from the lagging operation
+data_predictions = new_data[Columns].values
+
+
+# convert it to an array as the data used for the training waa converted to an array before training
+loaded_model = joblib.load('random_forest_flood_predictor.pkl')  
+
+
+# Load the saved model from the file
+new_predictions = loaded_model.predict(data_predictions)  # Predict using the loaded model on new data
+print("Predictions:", new_predictions)
+
+
+Predictions: [174.74  125.54  174.74  174.74  174.74  174.74   62.77   64.233  20.957
+   7.909  15.066  57.11   10.784]
